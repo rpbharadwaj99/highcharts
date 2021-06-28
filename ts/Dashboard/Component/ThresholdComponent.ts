@@ -38,7 +38,7 @@ class ThresholdComponent extends Component {
 
         const value = pick(
             options.value,
-            (componentOptions as any)[valueName || '']
+            componentOptions[valueName || '']
         );
 
         let CurrentComponent = options.component;
@@ -124,17 +124,17 @@ namespace ThresholdComponent {
 
     export interface ComponentOptions extends Component.ComponentOptions {
         component: ComponentConstructor;
-        options?: any;
-        thresholds?: Array<ThresholdOption>;
+        options?: AnyRecord;
+        thresholds?: Array<ThresholdOptions>;
         value?: number;
         valueName?: string;
     }
 
-    export interface ThresholdOption {
+    export interface ThresholdOptions {
         component?: ComponentConstructor;
         max?: number;
         min?: number;
-        options?: any;
+        options?: AnyRecord;
     }
 }
 
