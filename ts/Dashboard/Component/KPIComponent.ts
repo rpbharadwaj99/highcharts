@@ -14,6 +14,7 @@ const {
     createElement,
     css,
     defined,
+    getStyle,
     isArray,
     isNumber,
     merge
@@ -79,6 +80,7 @@ class KPIComponent extends Component {
     public chart?: Chart;
 
     private prevValue?: number;
+    private updatingSize?: boolean;
 
     constructor(options: Partial<KPIComponent.ComponentOptions>) {
         options = merge(
@@ -116,18 +118,20 @@ class KPIComponent extends Component {
 
         this.updateElements();
 
-        if (this.dimensions.width && this.dimensions.height) {
-            this.updateSize(this.dimensions.width, this.dimensions.height);
-        }
-
         this.on('resize', (): void => {
-            if (this.dimensions.width && this.dimensions.height) {
+            if (
+                !this.updatingSize &&
+                this.dimensions.width &&
+                this.dimensions.height
+            ) {
                 this.updateSize(this.dimensions.width, this.dimensions.height);
             }
 
             if (this.chart) {
                 this.chart.reflow();
             }
+
+            this.updatingSize = false;
         });
 
         return this;
@@ -139,6 +143,12 @@ class KPIComponent extends Component {
         }
         this.value.style.fontSize = 0.2 * Math.min(width, height) + 'px';
         this.subtitle.style.fontSize = 0.08 * Math.min(width, height) + 'px';
+
+        this.updatingSize = true;
+        super.resize(
+            Number(getStyle(this.parentElement, 'width')),
+            Number(getStyle(this.parentElement, 'height'))
+        );
     }
 
     public render(): this {

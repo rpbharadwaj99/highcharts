@@ -152,7 +152,10 @@ const threshold = [{
         min: 9001,
         options: {
             title: {
-                text: 'Its over 9000!!!'
+                text: 'Its over 9000!!!',
+                style: {
+                    fontWeight: 700
+                }
             },
             style: {
                 color: 'red',
@@ -171,9 +174,6 @@ const threshold = [{
     }).render();
 });
 
-requestAnimationFrame(() => {
-    kpi.forEach((k, i) => k.resizeTo(parents[i]));
-});
 window.addEventListener('resize', resizeAll);
 
 function random(max, min = 0) {
