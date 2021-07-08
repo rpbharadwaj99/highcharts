@@ -1,9 +1,14 @@
+import Chart from '../../Core/Chart/Chart.js';
 import Component from './Component.js';
 import U from '../../Core/Utilities.js';
 const {
+    isArray,
     isNumber,
+    isObject,
     merge,
-    pick
+    objectEach,
+    pick,
+    splat
 } = U;
 
 class ThresholdComponent extends Component {
@@ -16,6 +21,7 @@ class ThresholdComponent extends Component {
 
     public options: ThresholdComponent.ComponentOptions;
     public component?: Component;
+    private undoOptions?: AnyRecord;
 
     constructor(options: Partial<ThresholdComponent.ComponentOptions>) {
         options = merge(
@@ -88,20 +94,32 @@ class ThresholdComponent extends Component {
             }
         }
 
-        componentOptions.parentElement = options.parentElement;
-
-        // TODO: undoOptions
-        /* if (this.component instanceof component) {
-            this.component.update(componentOptions);
-        } else {*/
-        this.parentElement.innerHTML = '';
-        this.component = new CurrentComponent(merge(
+        componentOptions = merge(
             valueName && isNumber(options.value) ?
                 { [valueName]: options.value } :
                 {},
+            {
+                parentElement: options.parentElement
+            },
             componentOptions
-        )).render();
-        // }
+        );
+
+        if (this.component instanceof CurrentComponent) {
+            if (this.undoOptions) {
+                this.component.update(this.undoOptions);
+            }
+            this.undoOptions = ThresholdComponent.currentOptions(
+                componentOptions,
+                this.component.options
+            );
+
+            this.component.update(componentOptions);
+        } else {
+            this.undoOptions = void 0;
+
+            this.parentElement.innerHTML = '';
+            this.component = new CurrentComponent(componentOptions).render();
+        }
 
         return this;
     }
@@ -116,6 +134,8 @@ class ThresholdComponent extends Component {
         return this.redraw();
     }
 }
+
+/* eslint-disable valid-jsdoc */
 
 namespace ThresholdComponent {
     export type ComponentType = ThresholdComponent;
@@ -135,6 +155,68 @@ namespace ThresholdComponent {
         max?: number;
         min?: number;
         options?: AnyRecord;
+    }
+
+    /**
+     * Get the current values for a given set of options.
+     *
+     * @private
+     */
+    export function currentOptions(
+        options: AnyRecord,
+        curr: AnyRecord
+    ): AnyRecord {
+        const ret = {};
+
+        /**
+         * Recurse over a set of options and its current values,
+         * and store the current values in the ret object.
+         */
+        function getCurrent(
+            options: AnyRecord,
+            curr: AnyRecord,
+            ret: AnyRecord
+        ): void {
+            objectEach(options, function (val, key): void {
+                if (
+                    Chart.prototype.collectionsWithUpdate.indexOf(key) > -1 &&
+                    isArray(curr[key])
+                ) {
+                    val = splat(val);
+
+                    ret[key] = [];
+
+                    // Iterate over collections like series, xAxis or yAxis and
+                    // map the items by index.
+                    for (let i = 0; i < Math.max(val.length, curr[key].length); i++) {
+
+                        if (curr[key][i]) {
+                            if (val[i] === void 0) {
+                                ret[key][i] = curr[key][i];
+                            } else {
+                                ret[key][i] = {};
+                                getCurrent(
+                                    val[i],
+                                    curr[key][i],
+                                    ret[key][i]
+                                );
+                            }
+                        }
+                    }
+                } else if (isObject(val)) {
+                    ret[key] = isArray(val) ? [] : {};
+                    getCurrent(val, curr[key] || {}, ret[key]);
+                } else if (typeof curr[key] === 'undefined') {
+                    ret[key] = null;
+                } else {
+                    ret[key] = curr[key];
+                }
+            });
+        }
+
+        getCurrent(options, curr, ret);
+
+        return ret;
     }
 }
 
