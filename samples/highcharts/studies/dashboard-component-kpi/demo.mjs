@@ -73,7 +73,7 @@ const kpi = [{
     title: 'Beans',
     value: 7,
     subtitle: 'Consumed daily',
-    chart: {
+    chartOptions: {
         series: [{
             data: [1, 20, 3, 15, 9, 32, 2, 15]
         }]
@@ -87,7 +87,7 @@ const kpi = [{
     }
 }, {
     title: 'Progress',
-    chart: {
+    chartOptions: {
         chart: {
             type: 'solidgauge'
         },
@@ -106,7 +106,7 @@ const kpi = [{
     }
 }, {
     title: 'Infected last 24 hours',
-    chart: {
+    chartOptions: {
         yAxis: {
             visible: true
         },

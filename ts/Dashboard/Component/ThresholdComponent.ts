@@ -2,6 +2,7 @@ import Chart from '../../Core/Chart/Chart.js';
 import Component from './Component.js';
 import U from '../../Core/Utilities.js';
 const {
+    defined,
     isArray,
     isNumber,
     isObject,
@@ -204,8 +205,12 @@ namespace ThresholdComponent {
                         }
                     }
                 } else if (isObject(val)) {
-                    ret[key] = isArray(val) ? [] : {};
-                    getCurrent(val, curr[key] || {}, ret[key]);
+                    if (key === 'chartOptions' && !defined(curr[key])) {
+                        ret[key] = null;
+                    } else {
+                        ret[key] = isArray(val) ? [] : {};
+                        getCurrent(val, curr[key] || {}, ret[key]);
+                    }
                 } else if (typeof curr[key] === 'undefined') {
                     ret[key] = null;
                 } else {

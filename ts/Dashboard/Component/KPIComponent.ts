@@ -154,11 +154,18 @@ class KPIComponent extends Component {
     public render(): this {
         super.render();
 
-        if (this.options.chart && !this.chart) {
+        if (this.options.chartOptions && !this.chart) {
             this.chart = Highcharts.chart(this.chartContainer, merge(
                 KPIComponent.defaultChartOptions,
-                this.options.chart
+                this.options.chartOptions
             ));
+        } else if (
+            this.chart &&
+            !this.options.chartOptions &&
+            'chartOptions' in this.options
+        ) {
+            this.chart.destroy();
+            this.chart = void 0;
         }
 
         return this;
@@ -172,9 +179,8 @@ class KPIComponent extends Component {
 
     public update(options: Partial<KPIComponent.ComponentOptions>): this {
         super.update(options);
-
-        if (options.chart && this.chart) {
-            this.chart.update(options.chart);
+        if (options.chartOptions && this.chart) {
+            this.chart.update(options.chartOptions);
         }
 
         return this.redraw();
@@ -223,7 +229,7 @@ class KPIComponent extends Component {
             this.subtitle.className = this.getSubtitleClassName();
         }
 
-        this.chartContainer.style.flex = this.options.chart ? '1' : '0';
+        this.chartContainer.style.flex = this.options.chartOptions ? '1' : '0';
 
         if (this.chart) {
             this.chart.reflow();
@@ -305,7 +311,7 @@ namespace KPIComponent {
     export type ComponentType = KPIComponent;
 
     export interface ComponentOptions extends Component.ComponentOptions {
-        chart?: Options;
+        chartOptions?: Options;
         style?: CSSObject;
         threshold?: number|Array<number>;
         thresholdColors?: Array<string>;
