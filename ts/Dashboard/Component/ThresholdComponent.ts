@@ -2,7 +2,6 @@ import Chart from '../../Core/Chart/Chart.js';
 import Component from './Component.js';
 import U from '../../Core/Utilities.js';
 const {
-    defined,
     isArray,
     isNumber,
     isObject,
@@ -107,6 +106,12 @@ class ThresholdComponent extends Component {
 
         if (this.component instanceof CurrentComponent) {
             if (this.undoOptions) {
+                if (
+                    !componentOptions.chartOptions &&
+                    this.undoOptions.chartOptions
+                ) {
+                    this.undoOptions.chartOptions = null;
+                }
                 this.component.update(this.undoOptions);
             }
             this.undoOptions = ThresholdComponent.currentOptions(
@@ -116,7 +121,10 @@ class ThresholdComponent extends Component {
 
             this.component.update(componentOptions);
         } else {
-            this.undoOptions = void 0;
+            this.undoOptions = ThresholdComponent.currentOptions(
+                componentOptions,
+                (CurrentComponent as any).defaultOptions
+            );
 
             this.parentElement.innerHTML = '';
             this.component = new CurrentComponent(componentOptions).render();
@@ -205,12 +213,8 @@ namespace ThresholdComponent {
                         }
                     }
                 } else if (isObject(val)) {
-                    if (key === 'chartOptions' && !defined(curr[key])) {
-                        ret[key] = null;
-                    } else {
-                        ret[key] = isArray(val) ? [] : {};
-                        getCurrent(val, curr[key] || {}, ret[key]);
-                    }
+                    ret[key] = isArray(val) ? [] : {};
+                    getCurrent(val, curr[key] || {}, ret[key]);
                 } else if (typeof curr[key] === 'undefined') {
                     ret[key] = null;
                 } else {
