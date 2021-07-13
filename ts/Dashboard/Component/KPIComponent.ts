@@ -30,7 +30,8 @@ class KPIComponent extends Component {
             ].join(' '),
             style: {
                 boxSizing: 'border-box',
-                textAlign: 'center'
+                textAlign: 'center',
+                color: 'blue'
             },
             thresholdColors: ['#f45b5b', '#90ed7d']
         }
@@ -137,10 +138,14 @@ class KPIComponent extends Component {
         return this;
     }
 
-    private updateSize(width: number, height: number): void {
+    private updateTitleSize(width: number, height: number): void {
         if (this.titleElement) {
             this.titleElement.style.fontSize = 0.1 * Math.min(width, height) + 'px';
         }
+    }
+
+    private updateSize(width: number, height: number): void {
+        this.updateTitleSize(width, height);
         this.value.style.fontSize = 0.2 * Math.min(width, height) + 'px';
         this.subtitle.style.fontSize = 0.08 * Math.min(width, height) + 'px';
 
@@ -193,6 +198,21 @@ class KPIComponent extends Component {
             valueFormat,
             valueFormatter
         } = this.options;
+
+        if (this.options.title) {
+            const old = this.titleElement;
+            this.setTitle(this.options.title);
+            if (this.titleElement) {
+                if (old) {
+                    this.element.replaceChild(this.titleElement, old);
+                } else {
+                    this.element.insertBefore(this.titleElement, this.contentElement);
+                }
+            }
+            if (this.dimensions.width && this.dimensions.height) {
+                this.updateTitleSize(this.dimensions.width, this.dimensions.height);
+            }
+        }
 
         let value = this.options.value;
 
