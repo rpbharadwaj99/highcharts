@@ -222,6 +222,7 @@ namespace GridAxis {
             AxisClass.prototype.getMaxLabelDimensions = getMaxLabelDimensions;
 
             wrap(AxisClass.prototype, 'unsquish', wrapUnsquish);
+            wrap(AxisClass.prototype, 'getClosest', wrapGetClosest); // #16445
 
             // Add event handlers
             addEvent(AxisClass, 'init', onInit);
@@ -1304,6 +1305,14 @@ namespace GridAxis {
         }
 
         return proceed.apply(axis, argsToArray(arguments));
+    }
+
+    /**
+     * Avoid putting ticks closer than their data points.
+     * @private
+     */
+    function wrapGetClosest(): number {
+        return 1;
     }
 
     /* *
