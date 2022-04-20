@@ -1346,7 +1346,8 @@ class Axis {
     public getClosest(): number {
         let ret: any;
 
-        if (this.categories) {
+        // Allow putting ticks closer than their data points, #16445
+        if (this.categories || this.grid) {
             ret = 1;
         } else {
             this.series.forEach(function (series): void {
