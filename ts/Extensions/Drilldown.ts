@@ -433,12 +433,12 @@ defaultOptions.drilldown = {
      */
 
     /**
-     * Breadcrumbs options.
+     * Options for the breadcrumbs, the navigation at the top leading the way
+     * up through the drilldown levels.
      *
-     *
-     * @since     next
+     * @since 10.0.0
      * @product   highcharts
-     * @extends breadcrumbs
+     * @extends   navigation.breadcrumbs
      * @optionparent drilldown.breadcrumbs
      */
 
@@ -932,7 +932,9 @@ const createBreadcrumbsList = function (chart: Chart): Array<Breadcrumbs.Breadcr
             if (level.levelNumber + 1 > lastBreadcrumb.level) {
                 list.push({
                     level: level.levelNumber + 1,
-                    levelOptions: level.pointOptions
+                    levelOptions: merge({
+                        name: level.lowerSeries.name
+                    }, level.pointOptions)
                 });
             }
         });
@@ -988,6 +990,7 @@ Chart.prototype.drillUp = function (): void {
                 newSeries = addedSeries;
             }
         };
+    const drilldownLevelsNumber = (chart.drilldownLevels as any).length;
 
     while (i--) {
 
@@ -1013,14 +1016,22 @@ Chart.prototype.drillUp = function (): void {
             }
             oldSeries.xData = []; // Overcome problems with minRange (#2898)
 
+            // Reset the names to start new series from the beginning.
+            // Do it once to preserve names when multiple
+            // series are added for the same axis, #16135.
+            if (oldSeries.xAxis &&
+                oldSeries.xAxis.names &&
+                (drilldownLevelsNumber === 0 || i === drilldownLevelsNumber)
+            ) {
+                oldSeries.xAxis.names.length = 0;
+            }
+
             level.levelSeriesOptions.forEach(addSeries);
 
             fireEvent(chart, 'drillup', {
                 seriesOptions: level.seriesPurgedOptions ||
                     level.seriesOptions
             });
-
-            this.resetZoomButton && this.resetZoomButton.destroy(); // #8095
 
             if ((newSeries as any).type === oldSeries.type) {
                 (newSeries as any).drilldownLevel = level;
@@ -1054,7 +1065,6 @@ Chart.prototype.drillUp = function (): void {
             // it to the chart and show it.
             if (level.resetZoomButton) {
                 chart.resetZoomButton = level.resetZoomButton;
-                chart.resetZoomButton.show();
             }
         }
     }
@@ -1181,10 +1191,8 @@ addEvent(H.Breadcrumbs, 'up', function (
 addEvent(Chart, 'afterDrilldown', function (): void {
 
     const chart = this,
-        drilldownOptions = chart.options.drilldown;
-
-    const breadcrumbsOptions = drilldownOptions &&
-        drilldownOptions.breadcrumbs;
+        drilldownOptions = chart.options.drilldown,
+        breadcrumbsOptions = drilldownOptions && drilldownOptions.breadcrumbs;
 
     if (!chart.breadcrumbs) {
         chart.breadcrumbs = new Breadcrumbs(chart, breadcrumbsOptions);
@@ -1778,5 +1786,11 @@ addEvent(Point, 'afterSetState', function (): void {
 addEvent(Chart, 'drillup', function (): void {
     if (this.resetZoomButton) {
         this.resetZoomButton = this.resetZoomButton.destroy();
+    }
+});
+
+addEvent(Chart, 'drillupall', function (): void {
+    if (this.resetZoomButton) {
+        this.showResetZoom();
     }
 });

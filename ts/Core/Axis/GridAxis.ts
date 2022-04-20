@@ -607,7 +607,7 @@ namespace GridAxis {
                     }
 
                     // show or hide the line depending on options.showEmpty
-                    axis.axisLine[axis.showAxis ? 'show' : 'hide'](true);
+                    axis.axisLine[axis.showAxis ? 'show' : 'hide']();
                 }
             }
 

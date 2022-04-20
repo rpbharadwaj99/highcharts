@@ -1114,10 +1114,12 @@ Axis.prototype.applyGrouping = function (
     const axis = this,
         series = axis.series;
 
+    // Reset the groupPixelWidth for all series, #17141.
     series.forEach(function (series): void {
-        // Reset the groupPixelWidth, then calculate if needed.
         series.groupPixelWidth = void 0; // #2110
+    });
 
+    series.forEach(function (series): void {
         series.groupPixelWidth = (
             axis.getGroupPixelWidth &&
             axis.getGroupPixelWidth()
@@ -1233,8 +1235,11 @@ Axis.prototype.setDataGrouping = function (
         (this as any).chart.options.series.forEach(function (
             seriesOptions: any
         ): void {
-            seriesOptions.dataGrouping = dataGrouping;
-        }, false);
+            // Merging dataGrouping options with already defined options #16759
+            seriesOptions.dataGrouping = typeof dataGrouping === 'boolean' ?
+                dataGrouping :
+                merge(dataGrouping, seriesOptions.dataGrouping);
+        });
     }
 
     // Clear ordinal slope, so we won't accidentaly use the old one (#7827)

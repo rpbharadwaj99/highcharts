@@ -63,7 +63,7 @@ const ChartDefaults: ChartOptions = {
      */
 
     /**
-     * When using multiple axis, the ticks of two or more opposite axes
+     * When using multiple axes, the ticks of two or more opposite axes
      * will automatically be aligned by adding ticks to the axis or axes
      * with the least ticks, as if `tickAmount` were specified.
      *
@@ -71,8 +71,8 @@ const ChartDefaults: ChartOptions = {
      * lines look messy, it's a good idea to hide them for the secondary
      * axis by setting `gridLineWidth` to 0.
      *
-     * If `startOnTick` or `endOnTick` in an Axis options are set to false,
-     * then the `alignTicks ` will be disabled for the Axis.
+     * If `startOnTick` or `endOnTick` in the axis options are set to false,
+     * then the `alignTicks ` will be disabled for the axis.
      *
      * Disabled for logarithmic axes.
      *
@@ -90,6 +90,26 @@ const ChartDefaults: ChartOptions = {
      * @product   highcharts highstock gantt
      * @apioption chart.alignTicks
      */
+
+    /**
+     * When using multiple axes, align the thresholds. When this is true, other
+     * ticks will also be aligned.
+     *
+     * Note that for line series and some other series types, the `threshold`
+     * option is set to `null` by default. This will in turn cause their y-axis
+     * to not have a threshold. In order to avoid that, set the series
+     * `threshold` to 0 or another number.
+     *
+     * If `startOnTick` or `endOnTick` in the axis options are set to false, or
+     * if the axis is logarithmic, the threshold will not be aligned.
+     *
+     * @sample {highcharts} highcharts/chart/alignthresholds/ Set to true
+     *
+     * @since 10.0.0
+     * @product   highcharts highstock gantt
+     * @apioption chart.alignThresholds
+     */
+    alignThresholds: false,
 
     /**
      * Set the overall animation for all chart updating. Animation can be
@@ -505,6 +525,18 @@ const ChartDefaults: ChartOptions = {
      * @since      5.0.0
      */
     colorCount: 10,
+
+    /**
+     * By default, (because of memory and performance reasons) the chart does
+     * not copy the data but keeps it as a reference. In some cases, this might
+     * result in mutating the original data source. In order to prevent that,
+     * set that property to false. Please note that changing that might decrease
+     * performance, especially with bigger sets of data.
+     *
+     * @type       {boolean}
+     * @since      next
+     */
+    allowMutatingData: true,
 
     /**
      * Alias of `type`.
@@ -945,9 +977,10 @@ const ChartDefaults: ChartOptions = {
      *         Y
      * @sample {highstock} stock/chart/zoomtype-xy/
      *         Xy
+     * @sample {highmaps} maps/chart/zoomtype-xy/
+     *         Map with selection zoom
      *
      * @type       {string}
-     * @product    highcharts highstock gantt
      * @validvalue ["x", "y", "xy"]
      * @apioption  chart.zoomType
      */

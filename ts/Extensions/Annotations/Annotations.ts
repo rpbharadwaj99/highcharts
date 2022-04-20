@@ -708,7 +708,7 @@ class Annotation implements EventEmitterMixin.Type, ControllableMixin.Type {
                 opacity: 0,
                 zIndex: this.options.zIndex,
                 visibility: this.options.visible ?
-                    'visible' :
+                    'inherit' :
                     'hidden'
             })
             .add();
@@ -759,7 +759,7 @@ class Annotation implements EventEmitterMixin.Type, ControllableMixin.Type {
 
         this.graphic.attr(
             'visibility',
-            visibility ? 'visible' : 'hidden'
+            visibility ? 'inherit' : 'hidden'
         );
 
         if (!visibility) {
@@ -1692,6 +1692,14 @@ merge<Annotation>(
                  * @type      {Highcharts.EventCallbackFunction<Highcharts.Annotation>}
                  * @since     7.1.0
                  * @apioption annotations.events.afterUpdate
+                 */
+
+                /**
+                 * Fires when the annotation is clicked.
+                 *
+                 * @type      {Highcharts.EventCallbackFunction<Highcharts.Annotation>}
+                 * @since     7.1.0
+                 * @apioption annotations.events.click
                  */
 
                 /**
