@@ -128,6 +128,7 @@ declare module './SeriesLike' {
         invertible?: boolean;
         pointArrayMap?: Array<string>;
         pointValKey?: string;
+        toYData?(point: Point): Array<number>;
     }
 }
 
@@ -1217,7 +1218,7 @@ class Series {
             data.forEach(function (point, i): void {
                 // .update doesn't exist on a linked, hidden series (#3709)
                 // (#10187)
-                if (point !== oldData[i].y && oldData[i].update) {
+                if (point !== oldData[i].y && (oldData[i].update)) {
                     oldData[i].update(point, false, null as any, false);
                 }
             });
@@ -1363,7 +1364,7 @@ class Series {
             series.visible &&
             // Soft updating has no benefit in boost, and causes JS error
             // (#8355)
-            !series.isSeriesBoosting
+            !series.boosted
         ) {
             updatedData = this.updateData(data, animation);
         }
@@ -1468,7 +1469,7 @@ class Series {
             // destroy old points
             i = oldDataLength;
             while (i--) {
-                if (oldData[i] && oldData[i].destroy) {
+                if (oldData[i] && (oldData[i].destroy)) {
                     oldData[i].destroy();
                 }
             }
@@ -2287,7 +2288,7 @@ class Series {
             point.yBottom = defined(yBottom) ?
                 limitedRange(yAxis.translate(
                     (yBottom as any), 0 as any, 1 as any, 0 as any, 1 as any
-                ) as any) :
+                )) :
                 null as any;
 
             // General hook, used for Highcharts Stock compare and cumulative
@@ -2326,7 +2327,7 @@ class Series {
                     0 as any,
                     1 as any,
                     pointPlacement
-                ) as any) :
+                )) :
                 plotX; // #1514, #5383, #5518
 
             // Negative points. For bubble charts, this means negative z
@@ -4009,7 +4010,7 @@ class Series {
 
         // Shift the first point off the parallel arrays
         if (shift) {
-            if (data[0] && data[0].remove) {
+            if (data[0] && (data[0].remove)) {
                 data[0].remove(false);
             } else {
                 data.shift();
