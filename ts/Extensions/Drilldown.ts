@@ -54,9 +54,11 @@ const { seriesTypes } = SeriesRegistry;
 import SVGRenderer from '../Core/Renderer/SVG/SVGRenderer.js';
 import Tick from '../Core/Axis/Tick.js';
 import U from '../Core/Utilities.js';
+import MapUtilities from '../Maps/MapUtilities.js';
 import Breadcrumbs from './Breadcrumbs.js';
 
 const {
+    defined,
     addEvent,
     removeEvent,
     extend,
@@ -66,6 +68,10 @@ const {
     pick,
     syncTimeout
 } = U;
+
+const {
+    boundsFromPath
+} = MapUtilities;
 
 declare module '../Core/Axis/AxisLike' {
     interface AxisLike {
@@ -97,7 +103,7 @@ declare module '../Core/Chart/ChartLike' {
             ddOptions: SeriesTypeOptions
         ): void;
         applyDrilldown(): void;
-        drillUp(): void;
+        drillUp(isMultipleDrillUp?: boolean): void;
 
     }
 }
@@ -372,6 +378,10 @@ declare global {
  */
 
 import '../Series/Column/ColumnSeries.js';
+import MapPoint from '../Series/Map/MapPoint';
+import { MapBounds } from '../Maps/MapViewOptions';
+import MapView from '../Maps/MapView';
+import ColorAxis from '../Core/Axis/Color/ColorAxis';
 
 let PieSeries = seriesTypes.pie,
     ddSeriesId = 1;
@@ -739,8 +749,31 @@ Chart.prototype.addSeriesAsDrilldown = function (
     point: Point,
     options: SeriesTypeOptions
 ): void {
-    this.addSingleSeriesAsDrilldown(point, options);
-    this.applyDrilldown();
+    const chart = this;
+    // stop hovering while drilling down
+    (chart as any).duringDrilldown = true;
+    // hide and disable dataLabels
+    if ((point as any).series.dataLabelsGroup) {
+        (point as any).series.dataLabelsGroup.fadeOut(50);
+    }
+    (point as any).series.options.dataLabels.enabled = false;
+
+    if (!(chart.userOptions.drilldown as any).disableZoomWhileDrilldown) {
+        // FIRST ZOOM-TO THEN CROSSFADE SERIES
+        (chart as any).disableTransform = false;
+        (point as MapPoint).zoomTo(
+            function (test: boolean = false): void {
+                if (test) {
+                    chart.addSingleSeriesAsDrilldown(point, options);
+                    chart.applyDrilldown();
+                    (chart as any).disableTransform = true;
+                }
+            }
+        );
+    } else {
+        chart.addSingleSeriesAsDrilldown(point, options);
+        chart.applyDrilldown();
+    }
 };
 Chart.prototype.addSingleSeriesAsDrilldown = function (
     point: Point,
@@ -776,8 +809,9 @@ Chart.prototype.addSingleSeriesAsDrilldown = function (
     }
 
     ddOptions = extend(extend<SeriesOptions>({
-        _ddSeriesId: ddSeriesId++
-    }, colorProp), ddOptions);
+        _ddSeriesId: ddSeriesId++,
+        drilledFromGeometry: (point as any).geometry
+    } as any, colorProp), ddOptions);
     pointIndex = oldSeries.points.indexOf(point);
 
     // Record options for all current series
@@ -857,42 +891,80 @@ Chart.prototype.addSingleSeriesAsDrilldown = function (
 };
 
 Chart.prototype.applyDrilldown = function (): void {
-    let drilldownLevels = this.drilldownLevels,
+    const chart = this;
+    let drilldownLevels = chart.drilldownLevels,
         levelToRemove: (number|undefined);
 
-    if (drilldownLevels && drilldownLevels.length > 0) { // #3352, async loading
+    if (drilldownLevels &&
+        drilldownLevels.length > 0) { // #3352, async loading
         levelToRemove = drilldownLevels[drilldownLevels.length - 1].levelNumber;
         (this.drilldownLevels as any).forEach(function (
-            level: Highcharts.DrilldownLevelObject
+            level: Highcharts.DrilldownLevelObject,
+            i: Number
         ): void {
             if (level.levelNumber === levelToRemove) {
-                level.levelSeries.forEach(function (series): void {
+
+                // add additional redraws and animation after zooming into
+                // region
+                if (!(chart.userOptions.drilldown as any)
+                    .disableZoomWhileDrilldown) {
+                    chart.redraw();
+                    if (chart.mapView) {
+                        chart.mapView.fitToBounds(
+                            (level.lowerSeries as any).bounds);
+                    }
+                }
+
+                level.levelSeries.forEach(function (series, j): void {
                     // Not removed, not added as part of a multi-series
                     // drilldown
                     if (
                         series.options &&
-                        series.options._levelNumber === levelToRemove
+                        series.options._levelNumber === levelToRemove &&
+                        series.group
                     ) {
-                        series.remove(false);
+                        series.group.animate({
+                            opacity: 0
+                        },
+                        (chart.options.drilldown as any).animation,
+                        function (): void {
+                            series.remove(false);
+                            // run when its last iteration
+                            if (drilldownLevels &&
+                                i === drilldownLevels.length - 1 &&
+                                j === level.levelSeries.length - 1
+                            ) {
+                                (chart as any).duringDrilldown = false;
+                                // We have a reset zoom button. Hide it and
+                                // detatch it from the chart. It is preserved to
+                                // the layer config above.
+                                if (chart.resetZoomButton) {
+                                    chart.resetZoomButton.hide();
+                                    delete chart.resetZoomButton;
+                                }
+
+                                chart.pointer.reset();
+
+                                fireEvent(chart, 'afterDrilldown');
+
+                                // temporary workaround:
+                                if (chart.colorAxis && chart.mapView) {
+                                    chart.colorAxis.forEach(
+                                        (colorAxis: ColorAxis): void => {
+                                            colorAxis.update({});
+                                        }
+                                    );
+                                    chart.mapView.setView(void 0, 1);
+                                }
+                                fireEvent(chart, 'afterApplyDrilldown');
+                            }
+                        }
+                        );
                     }
                 });
             }
         });
     }
-
-    // We have a reset zoom button. Hide it and detatch it from the chart. It
-    // is preserved to the layer config above.
-    if (this.resetZoomButton) {
-        this.resetZoomButton.hide();
-        delete this.resetZoomButton;
-    }
-
-    this.pointer.reset();
-
-    fireEvent(this, 'afterDrilldown');
-
-    this.redraw();
-    fireEvent(this, 'afterApplyDrilldown');
 };
 
 /**
@@ -952,22 +1024,16 @@ const createBreadcrumbsList = function (chart: Chart): Array<Breadcrumbs.Breadcr
  * @sample {highcharts} highcharts/drilldown/programmatic
  *         Programmatic drilldown
  */
-Chart.prototype.drillUp = function (): void {
+Chart.prototype.drillUp = function (isMultipleDrillUp?: boolean): void {
     if (!this.drilldownLevels || this.drilldownLevels.length === 0) {
         return;
     }
     fireEvent(this, 'beforeDrillUp');
 
-    let chart = this,
+    const chart = this,
         drilldownLevels = chart.drilldownLevels as any,
         levelNumber = drilldownLevels[drilldownLevels.length - 1].levelNumber,
-        i = drilldownLevels.length,
         chartSeries = chart.series,
-        seriesI: number,
-        level: Highcharts.DrilldownLevelObject,
-        oldSeries: Series,
-        newSeries: (Series|undefined),
-        oldExtremes: Record<string, (number|undefined)>,
         addSeries = function (seriesOptions: SeriesOptions): void {
             let addedSeries;
 
@@ -988,8 +1054,19 @@ Chart.prototype.drillUp = function (): void {
             if (seriesOptions === level.seriesPurgedOptions) {
                 newSeries = addedSeries;
             }
-        };
-    const drilldownLevelsNumber = (chart.drilldownLevels as any).length;
+        },
+        drilldownLevelsNumber = (chart.drilldownLevels as any).length;
+
+    let i = drilldownLevels.length,
+        seriesI: number,
+        level: Highcharts.DrilldownLevelObject,
+        oldSeries: Series,
+        newSeries: (Series|undefined),
+        oldExtremes: Record<string, (number|undefined)>,
+        bounds: MapBounds|undefined,
+        geometry: any;
+
+    (chart as any).duringDrilldown = true;
 
     while (i--) {
 
@@ -1043,7 +1120,12 @@ Chart.prototype.drillUp = function (): void {
             }
             (newSeries as any).options._levelNumber = levelNumber;
 
-            oldSeries.remove(false);
+            geometry = (oldSeries.options as any).drilledFromGeometry;
+
+            if (this.mapView) {
+                const path = this.mapView.projection.path(geometry);
+                bounds = boundsFromPath(path as any);
+            }
 
             // Reset the zoom level of the upper series
             if ((newSeries as any).xAxis) {
@@ -1065,19 +1147,94 @@ Chart.prototype.drillUp = function (): void {
             if (level.resetZoomButton) {
                 chart.resetZoomButton = level.resetZoomButton;
             }
+
+            if (level.levelNumber === levelNumber && isMultipleDrillUp) {
+                oldSeries.remove(false);
+            } else if (level.levelNumber === levelNumber &&
+                !isMultipleDrillUp) {
+                // hide and disable dataLabels
+                if (oldSeries.dataLabelsGroup) {
+                    oldSeries.dataLabelsGroup.fadeOut(50);
+                }
+                (oldSeries.options.dataLabels as any).enabled = false;
+
+                if (!(chart.userOptions.drilldown as any)
+                    .disableZoomWhileDrilldown) {
+                    chart.redraw(false);
+                    // Fit to previous bounds
+                    (chart.mapView as MapView).fitToBounds(
+                        bounds,
+                        void 0,
+                        true,
+                        false
+                    );
+                }
+
+                (chart as any).disableTransform = false;
+                fireEvent(chart, 'afterDrillUp', {
+                    seriesOptions: newSeries ? newSeries.userOptions : void 0
+                });
+                const seriesToRemove = oldSeries;
+                if (!(chart.userOptions.drilldown as any)
+                    .disableZoomWhileDrilldown && chart.mapView) {
+                    // Fit to natural bounds
+                    chart.mapView.setView(void 0, 1, true, {
+                        complete: function (): void {
+                            if (defined((this as any).complete)) {
+                                seriesToRemove.remove(false);
+
+                                // temporary workaround:
+                                if (chart.colorAxis) {
+                                    chart.colorAxis.forEach(
+                                        (colorAxis: ColorAxis): void => {
+                                            colorAxis.update({});
+                                        }
+                                    );
+                                    chart.redraw();
+                                }
+                                (chart as any).duringDrilldown = false;
+                            }
+                        }
+                    });
+                } else {
+                    // When user don't want to zoom into region only fade out
+                    (chart as any).disableTransform = true;
+                    if (oldSeries.group) {
+                        oldSeries.group.animate({
+                            opacity: 0
+                        },
+                        (chart.options.drilldown as any).animation,
+                        function (): void {
+                            seriesToRemove.remove();
+
+                            // temporary workaround:
+                            if (chart.colorAxis) {
+                                chart.colorAxis.forEach(
+                                    (colorAxis: ColorAxis): void => {
+                                        colorAxis.update({});
+                                    }
+                                );
+                                chart.redraw();
+                            }
+                            (chart as any).disableTransform = false;
+                            (chart as any).duringDrilldown = false;
+                        });
+                    } else {
+                        oldSeries.remove();
+                        (chart as any).disableTransform = false;
+                        (chart as any).duringDrilldown = false;
+                    }
+                }
+
+                if (chart.ddDupes) {
+                    chart.ddDupes.length = 0; // #3315
+                } // #8324
+                // Fire a once-off event after all series have been drilled up
+                // (#5158)
+                fireEvent(chart, 'drillupall');
+            }
         }
     }
-
-    fireEvent(chart, 'afterDrillUp');
-
-    this.redraw();
-
-    if (this.ddDupes) {
-        this.ddDupes.length = 0; // #3315
-    } // #8324
-
-    // Fire a once-off event after all series have been drilled up (#5158)
-    fireEvent(chart, 'drillupall');
 };
 
 /**
@@ -1184,8 +1341,12 @@ addEvent(H.Breadcrumbs, 'up', function (
 ): void {
     const chart = this.chart,
         drillUpsNumber = this.getLevel() - e.newLevel;
+    let isMultipleDrillUp = drillUpsNumber > 1;
     for (let i = 0; i < drillUpsNumber; i++) {
-        chart.drillUp();
+        if (i === drillUpsNumber - 1) {
+            isMultipleDrillUp = false;
+        }
+        chart.drillUp(isMultipleDrillUp);
     }
 });
 

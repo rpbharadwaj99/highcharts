@@ -1681,6 +1681,10 @@ class Pointer {
                     false
             );
 
+        if ((chart as any).duringDrilldown) {
+            return void 0;
+        }
+
         let hoverPoint = p || chart.hoverPoint,
             hoverSeries = hoverPoint && hoverPoint.series || chart.hoverSeries;
 
